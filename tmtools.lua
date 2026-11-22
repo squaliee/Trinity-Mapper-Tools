@@ -3,7 +3,7 @@
 --  AUTHOR BBBBBB-Bohdan Nominov | t.me/sigmasay
 -- ============================================================
 
-SCRIPT_VERSION      = "8.1"
+SCRIPT_VERSION      = "8.2"
 UPDATE_VERSION_URL  = "https://raw.githubusercontent.com/squaliee/Trinity-Mapper-Tools/main/version.json"
 UPDATE_FALLBACK_URL = "https://raw.githubusercontent.com/squaliee/Trinity-Mapper-Tools/main/tmtools-8.0.lua"
 
@@ -11132,8 +11132,12 @@ function checkForUpdates(isManual)
                         changelog = tostring(info.changelog or "")
                     }
                     updateStatusText = u8("Доступна v" .. updateAvailable.version)
-                    updateModalOpen[0] = true
-                    sampAddChatMessage(string.format('{FF9326}[TMT]{CFCFCF} Доступно обновление {FF9326}v%s{CFCFCF} (текущая: v%s)! Откройте меню для установки.', updateAvailable.version, SCRIPT_VERSION), -1)
+                    toast_text      = "Доступно обновление v" .. updateAvailable.version
+                    toast_text2     = "Настройки -> Обновление"
+                    toast_tex       = nil
+                    toast_timer_max = 0
+                    toast_timer     = 300 -- ~5 секунд при 60 FPS
+                    sampAddChatMessage(string.format('{FF9326}[TMT]{CFCFCF} Доступно обновление {FF9326}v%s{CFCFCF}! Чтобы обновить, перейдите в Настройки -> {FF9326}Обновление{CFCFCF}.', updateAvailable.version), -1)
                 else
                     updateAvailable = nil
                     updateStatusText = u8"Актуальная версия"
@@ -17903,7 +17907,8 @@ local function renderTabSettings()
             { id = 3, icon = fa.ICON_CROSSHAIRS,  title = u8"Инструменты",  desc = u8"Сканер объектов, CamHack" },
             { id = 4, icon = fa.ICON_WRENCH,      title = u8"Мини-панели",  desc = u8"Быстрые текстуры и объекты" },
             { id = 5, icon = fa.ICON_BELL,        title = u8"Оповещения",   desc = u8"Уведомления и оверлеи" },
-            { id = 6, icon = fa.ICON_INFO_CIRCLE, title = u8"Справка",      desc = u8"Горячие клавиши и команды" }
+            { id = 6, icon = fa.ICON_INFO_CIRCLE, title = u8"Справка",      desc = u8"Горячие клавиши и команды" },
+            { id = 7, icon = fa.ICON_DOWNLOAD,    title = u8"Обновление",   desc = u8"Версия и автообновление" }
         }
 
         for _, cat in ipairs(settingsCategories) do
@@ -17963,8 +17968,9 @@ local function renderTabSettings()
         imgui.Separator()
         imgui.Spacing()
         imgui.TextDisabled(u8("Версия: v" .. SCRIPT_VERSION))
-        if imgui.Button((fa.ICON_REFRESH or "") .. u8" Обновления##chk_upd_btn", imgui.ImVec2(sbAvailW, 26)) then
-            checkForUpdates(true)
+        if imgui.Button((fa.ICON_DOWNLOAD or "") .. u8" Обновление##chk_upd_btn", imgui.ImVec2(sbAvailW, 26)) then
+            settingsSubTab = 7
+            imgui.StrCopy(settingsSearchBuf, "")
         end
         if updateStatusText ~= "" then
             imgui.TextColored(accentColorA(0.95), updateStatusText)
@@ -17986,6 +17992,7 @@ local function renderTabSettings()
     local showPanels   = (qSearch == "" and settingsSubTab == 4) or (qSearch ~= "" and (u8"мини-панели быстрые текстуры объекты группы quicktex quickobj quickgrp"):find(qSearch, 1, true))
     local showNotify   = (qSearch == "" and settingsSubTab == 5) or (qSearch ~= "" and (u8"оповещения уведомления glist grouplist подсказки cr"):find(qSearch, 1, true))
     local showHelp     = (qSearch == "" and settingsSubTab == 6) or (qSearch ~= "" and (u8"справка команды del gr mgr gdel tex grset gtex objlist"):find(qSearch, 1, true))
+    local showUpdate   = (qSearch == "" and settingsSubTab == 7) or (qSearch ~= "" and (u8"обновление версия скачать проверить github"):find(qSearch, 1, true))
 
     -- ==========================================
     -- 1. ГОРЯЧИЕ КЛАВИШИ И БИНДЫ
@@ -18619,6 +18626,55 @@ renderSectionHeader(fa.ICON_VIDEO_CAMERA, u8"CamHack (Свободная камера)")
             imgui.Spacing()
         end
 
+    end
+
+    if showUpdate then
+        renderSectionHeader(fa.ICON_DOWNLOAD, u8"Обновление Trinity Mapper Tools")
+        imgui.Spacing()
+        imgui.Text(u8("Текущая установленная версия: "))
+        imgui.SameLine()
+        imgui.TextColored(accentColor(), u8("v" .. SCRIPT_VERSION))
+        imgui.Spacing()
+
+        if updateChecking then
+            imgui.Button(u8"Проверка обновлений...##upd_tab_chk_busy", imgui.ImVec2(220, 28))
+        else
+            if imgui.Button((fa.ICON_REFRESH or "") .. u8"  Проверить обновления##upd_tab_chk", imgui.ImVec2(220, 28)) then
+                checkForUpdates(true)
+            end
+        end
+        if updateStatusText ~= "" then
+            imgui.SameLine(0, 12)
+            imgui.AlignTextToFramePadding()
+            imgui.TextColored(accentColorA(0.95), updateStatusText)
+        end
+
+        imgui.Spacing(); imgui.Separator(); imgui.Spacing()
+
+        if updateAvailable ~= nil then
+            imgui.TextColored(imgui.ImVec4(0.25, 0.95, 0.45, 1.0), fa.ICON_CHECK_CIRCLE .. u8("  Доступна новая версия: v" .. tostring(updateAvailable.version)))
+            imgui.Spacing()
+            imgui.TextDisabled(u8"Список изменений:")
+            imgui.BeginChild("##tmt_upd_tab_changelog", imgui.ImVec2(contentW, 140), true)
+                local clText = (updateAvailable.changelog and updateAvailable.changelog ~= "") and safeU8(updateAvailable.changelog) or u8"Улучшения и исправления ошибок."
+                imgui.TextWrapped(clText)
+            imgui.EndChild()
+
+            imgui.Spacing()
+            if updateDownloading then
+                imgui.Button(u8"Загрузка и установка обновления...##upd_tab_busy", imgui.ImVec2(260, 32))
+            else
+                imgui.PushStyleColor(imgui.Col.Button,        imgui.ImVec4(0.15, 0.45, 0.22, 1.0))
+                imgui.PushStyleColor(imgui.Col.ButtonHovered, imgui.ImVec4(0.20, 0.58, 0.30, 1.0))
+                imgui.PushStyleColor(imgui.Col.ButtonActive,  imgui.ImVec4(0.25, 0.68, 0.36, 1.0))
+                if imgui.Button(fa.ICON_DOWNLOAD .. u8"  Обновить сейчас##upd_tab_now", imgui.ImVec2(260, 32)) then
+                    downloadAndApplyUpdate()
+                end
+                imgui.PopStyleColor(3)
+            end
+        else
+            imgui.TextDisabled(u8"Новых обновлений пока не найдено. Нажмите «Проверить обновления», чтобы свериться с GitHub.")
+        end
     end
 
     imgui.EndChild()
