@@ -1,5 +1,5 @@
 {
-  "version": "8.0",
-  "url": "https://raw.githubusercontent.com/squaliee/Trinity-Mapper-Tools/main/tmtools-8.0.lua",
+  "version": "8.1",
+  "url": "https://raw.githubusercontent.com/squaliee/Trinity-Mapper-Tools/main/tmtools.lua"
   "changelog": "Первая версия с автообновлением"
 }
